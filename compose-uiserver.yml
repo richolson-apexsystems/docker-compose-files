@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  uiserver:
+    image: ochsner-servers
+    restart: "no"
+    container_name: uiserver
+    ports:
+      - "3030:3030"
+      - "9999:9999"
+      - "4000:4000"
+  uiinterface:
+    image: esitter-ui
+    restart: "no"
+    container_name: uiinterface
+    ports:
+      - "3000:3000"
+    depends_on:
+      - uiserver

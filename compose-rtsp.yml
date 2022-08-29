@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  rtsp:
+    image: docker.io/aler9/rtsp-simple-server:latest
+    restart: "no"
+    container_name: rtsp-hls
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+    environment:
+      - RTSP_PROTOCOLS=tcp
+      - RTSP_RTSPPORT=8554
+      - RTSP_HLSPORT=8888
+      - RTSP_PATHS_ROOM352_SOURCE=rtsp://192.168.1.152:554/profile2/media.smp
+      - RTSP_PATHS_ROOM352_SOURCEPROTOCOL=tcp
+      - RTSP_PATHS_ROOM352_SOURCEONDEMAND=yes
+      - RTSP_PATHS_ROOM353_SOURCE=rtsp://192.168.1.152:554/profile2/media.smp
+      - RTSP_PATHS_ROOM353_SOURCEPROTOCOL=tcp
+      - RTSP_PATHS_ROOM353_SOURCEONDEMAND=yes
+      - RTSP_READTIMEOUT=10s
+      - RTSP_WRITETIMEOUT=10s
+      - RTSP_HLSALLOWORIGIN=*
+      - RTSP_HLSALWAYSREMUX=yes
+      - RTSP_HLSSEGMENTCOUNT=3
+      - RTSP_HLSSEGMENTDURATION=1s
+      - RTSP_HLSSEGMENTMAXSIZE=50M
+  ffmpeg:
+    image: linuxserver/ffmpeg
+    container_name: ffmpeg-copy-rtsp
+    ports:
+      - "554:554"
+    tty: true
+    entrypoint: "bash"
+    depends_on:
+      rtsp:
+        condition: service_started

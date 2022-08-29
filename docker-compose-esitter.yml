@@ -1,0 +1,122 @@
+version: "3.8"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always
+    container_name: mssql
+    ports:
+      - "1433:1433"
+    user: root
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=ESitter2022!
+      - MSSQL_PID=Express
+    volumes:
+      - dbdata:/var/opt/mssql/data
+  zookeeper:
+    image: bitnami/zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+  kafka:
+    image: bitnami/kafka
+    ports:
+      - "9092:9092"
+    restart: always
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+    depends_on:
+      - zookeeper
+  mongodb:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "esitter"
+      MONGO_INITDB_ROOT_PASSWORD: "ESitter2022!"
+      MONGO_INITDB_DATABASE: esitterEventDB
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+  rtsp:
+    image: docker.io/aler9/rtsp-simple-server:latest
+    restart: "no"
+    container_name: rtsp-hls
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+    environment:
+      - RTSP_PROTOCOLS=tcp
+      - RTSP_RTSPPORT=8554
+      - RTSP_HLSPORT=8888
+      - RTSP_PATHS_ROOM352_SOURCE=rtsp://192.168.1.152:554/profile2/media.smp
+      - RTSP_PATHS_ROOM352_SOURCEPROTOCOL=tcp
+      - RTSP_PATHS_ROOM352_SOURCEONDEMAND=yes
+      - RTSP_PATHS_ROOM353_SOURCE=rtsp://68.227.145.128:8554/profile2/media.smp
+      - RTSP_PATHS_ROOM353_SOURCEPROTOCOL=tcp
+      - RTSP_PATHS_ROOM353_SOURCEONDEMAND=yes
+      - RTSP_READTIMEOUT=10s
+      - RTSP_WRITETIMEOUT=10s
+      - RTSP_HLSALLOWORIGIN=*
+      - RTSP_HLSALWAYSREMUX=yes
+      - RTSP_HLSSEGMENTCOUNT=2
+      - RTSP_HLSSEGMENTDURATION=1s
+      - RTSP_HLSSEGMENTMAXSIZE=50M
+  ffmpeg:
+    image: linuxserver/ffmpeg
+    container_name: ffmpeg-copy-rtsp
+    ports:
+      - "554:554"
+    tty: true
+    entrypoint: "bash"
+    depends_on:
+      rtsp:
+        condition: service_started
+  uiserver:
+    image: ochsner-servers
+    restart: "no"
+    container_name: uiserver
+    ports: 
+      - "3030:3030"
+      - "9999:9999"
+      - "4000:4000"
+    depends_on:
+      - sqlserver
+      - kafka
+      - mongodb
+      - zookeeper
+  uiinterface:
+    image: esitter-ui
+    restart: "no"
+    container_name: uiinterface
+    ports: 
+      - "3000:3000"
+    depends_on:
+      - uiserver
+      - rtsp
+      - ffmpeg
+      - sqlserver
+      - kafka
+      - mongodb
+      - zookeeper        
+volumes:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  dbdata:
+networks:
+  default:
+    name: oschnerVirtualNet
